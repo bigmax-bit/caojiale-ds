@@ -127,15 +127,14 @@
 <script>
 /* ========== 基础 ========== */
 const API="https://api.deepseek.com/chat/completions";
-const K={key:"ds2_key",convs:"ds2_convs",cur:"ds2_cur",mem:"ds2_mem"};
+const K={key:"ds2_key",convs:"ds3_convs",cur:"ds3_cur",mem:"ds2_mem"};
+const THUMB=200;   // 历史里只存这个尺寸的缩略图
 const $=id=>document.getElementById(id);
 const log=$('log'),q=$('q'),modelSel=$('model');
 
 const store={
   get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
-  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){
-    if(e.name==='QuotaExceededError'){alert('本地存储满了：删掉一些旧对话或图片');}
-    return false}}
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
 };
 
 let state={
@@ -154,7 +153,33 @@ function curConv(){
   if(!c){ c={id:uid(),title:'新对话',msgs:[],updated:Date.now()}; state.convs.unshift(c); state.cur=c.id; persist(); }
   return c;
 }
-function persist(){ store.set(K.convs,state.convs); store.set(K.cur,state.cur); }
+function persist(){
+  if(store.set(K.convs,state.convs)){ store.set(K.cur,state.cur); return true; }
+  // 满了：1) 先清掉非当前对话的所有图片  2) 再删最旧对话  3) 再不行只留当前对话
+  for(const c of state.convs){ if(c.id!==state.cur) c.msgs.forEach(m=>{ delete m.thumbs; delete m.imgs; }); }
+  if(store.set(K.convs,state.convs)){ store.set(K.cur,state.cur); toast('已自动清理旧图片'); return true; }
+  while(state.convs.length>1){
+    const idx=state.convs.findIndex(c=>c.id!==state.cur);
+    if(idx<0) break;
+    state.convs.splice(idx,1);
+    state.convs.forEach(c=>{ if(c.id!==state.cur) c.msgs.forEach(m=>{ delete m.thumbs; delete m.imgs; }); });
+    if(store.set(K.convs,state.convs)){ store.set(K.cur,state.cur); toast('已自动清理旧对话'); return true; }
+  }
+  toast('存储仍然不足，建议导出后清理');
+  return false;
+}
+
+function toast(msg){
+  const d=document.createElement('div');
+  d.textContent=msg;
+  d.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#23272f;border:1px solid #2a2f38;color:#e6e8eb;padding:9px 14px;border-radius:10px;font-size:14px;z-index:99';
+  document.body.appendChild(d); setTimeout(()=>d.remove(),2200);
+}
+
+function usage(){
+  let b=0; try{ b=(localStorage.getItem(K.convs)||'').length*2; }catch(e){}
+  return Math.round(b/1024);
+}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
 /* 轻量 markdown：代码块 / 行内代码 / 粗体 / 标题 */
@@ -207,7 +232,8 @@ function paint(m){
     dt.innerHTML='<summary>思考过程</summary><div>'+esc(m.reasoning).slice(0,4000)+'</div>';
     b.insertBefore(dt,b.firstChild);
   }
-  if(m.imgs&&m.imgs.length){ m.imgs.forEach(src=>{const im=new Image();im.src=src;b.appendChild(im);}); }
+  const th=m.thumbs||m.imgs;
+  if(th&&th.length){ th.forEach(src=>{const im=new Image();im.src=src;im.loading='lazy';b.appendChild(im);}); }
   if(m.files&&m.files.length){
     const t=document.createElement('div'); t.className='meta';
     t.textContent='📄 '+m.files.join('、');
@@ -244,11 +270,23 @@ $('mok').onclick=()=>{ const v=($('mtext').classList.contains('hide')?$('minput'
 
 $('more').onclick=()=>{
   const c=curConv();
-  const act=prompt('输入数字：\n1 长期记忆\n2 导出 Markdown\n3 清空当前对话\n4 更换 API Key');
+  const act=prompt('输入数字：\n1 长期记忆\n2 导出 Markdown\n3 清空当前对话\n4 更换 API Key\n5 存储管理（已用 '+usage()+' KB）');
   if(act==='1') $('memBtn').click();
   else if(act==='2') exportMd(c);
   else if(act==='3'){ if(confirm('清空当前对话？')){ c.msgs=[]; persist(); renderAll(); } }
   else if(act==='4') $('keyBtn').click();
+  else if(act==='5'){
+    const pick=prompt('已用约 '+usage()+' KB（上限约 5000 KB）\n\n1 只清理旧对话里的图片\n2 清理并只保留当前对话\n3 导出全部再清空');
+    if(pick==='1'){ state.convs.forEach(c=>{ if(c.id!==state.cur) c.msgs.forEach(m=>{delete m.thumbs;delete m.imgs;}); });
+      persist(); renderAll(); toast('已清理旧图片'); }
+    else if(pick==='2'){ const cur=curConv(); state.convs=[cur]; persist(); renderAll(); toast('已只保留当前对话'); }
+    else if(pick==='3'){
+      let s=''; state.convs.forEach(c=>{ s+='# '+(c.title||'对话')+'\n'; c.msgs.forEach(m=>{ s+=(m.role==='user'?'**我**：':'**AI**：')+m.content+'\n\n'; }); s+='\n---\n'; });
+      const blob=new Blob([s],{type:'text/markdown'}); const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download='全部对话.md'; a.click();
+      setTimeout(()=>{ state.convs=[]; state.cur=null; persist(); renderAll(); toast('已导出并清空'); },800);
+    }
+  }
 };
 
 $('memBtn').onclick=()=>{
@@ -281,7 +319,7 @@ function renderChips(){
   box.classList.toggle('hide',attachments.length===0);
   attachments.forEach((a,i)=>{
     const d=document.createElement('div'); d.className='chip';
-    if(a.kind==='image'){ const im=new Image(); im.src=a.dataURL; d.appendChild(im); }
+    if(a.kind==='image'){ const im=new Image(); im.src=a.thumb||a.dataURL; d.appendChild(im); }
     const s=document.createElement('span'); s.textContent=a.name.slice(0,16); d.appendChild(s);
     const x=document.createElement('i'); x.textContent='✕'; x.onclick=()=>{attachments.splice(i,1);renderChips()};
     d.appendChild(x); box.appendChild(d);
@@ -291,8 +329,8 @@ function addFile(f){
   return new Promise(async res=>{
     try{
       if(f.type.startsWith('image/')){
-        const dataURL=await compress(f);
-        attachments.push({kind:'image',name:f.name,dataURL});
+        const r=await compress(f);
+        attachments.push({kind:'image',name:f.name,dataURL:r.full,thumb:r.thumb});
       }else if(f.name.toLowerCase().endsWith('.pdf')){
         const txt=await pdfText(f);
         attachments.push({kind:'text',name:f.name,data:'[PDF] '+f.name+'\n'+txt});
@@ -304,16 +342,21 @@ function addFile(f){
     res();
   });
 }
+function draw(img,max,q){
+  let w=img.width,h=img.height;
+  const k=Math.min(1,max/Math.max(w,h)); w=Math.round(w*k); h=Math.round(h*k);
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  cv.getContext('2d').drawImage(img,0,0,w,h);
+  return cv.toDataURL('image/jpeg',q);
+}
 function compress(file){
   return new Promise((res,rej)=>{
     const img=new Image(); const url=URL.createObjectURL(file);
     img.onload=()=>{
-      const MAX=1568; let w=img.width,h=img.height;
-      const k=Math.min(1,MAX/Math.max(w,h)); w=Math.round(w*k); h=Math.round(h*k);
-      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-      cv.getContext('2d').drawImage(img,0,0,w,h);
+      const full=draw(img,1568,0.82);      // 发给模型用
+      const thumb=draw(img,THUMB,0.6);     // 存本地用
       URL.revokeObjectURL(url);
-      res(cv.toDataURL('image/jpeg',0.82));
+      res({full,thumb});
     };
     img.onerror=()=>rej(new Error('图片解码失败'));
     img.src=url;
@@ -363,12 +406,13 @@ async function ask(){
   const c=curConv();
   busy=true; $('send').disabled=true;
 
-  const imgs=attachments.filter(a=>a.kind==='image').map(a=>a.dataURL);
+  const imgsFull=attachments.filter(a=>a.kind==='image').map(a=>a.dataURL);
+  const imgsThumb=attachments.filter(a=>a.kind==='image').map(a=>a.thumb||a.dataURL);
   const files=attachments.filter(a=>a.kind==='text').map(a=>a.name);
   const content=buildContent(text);
   const shown=text||'（附件）';
 
-  c.msgs.push({role:'user',content:shown,imgs:imgs.length?imgs:undefined,files:files.length?files:undefined});
+  c.msgs.push({role:'user',content:shown,thumbs:imgsThumb.length?imgsThumb:undefined,files:files.length?files:undefined});
   if(c.title==='新对话'||!c.title) c.title=(text||files[0]||'新对话').slice(0,20);
   persist(); renderAll();
 
@@ -423,6 +467,11 @@ q.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); ask(); }
 });
 q.addEventListener('input',()=>{ q.style.height='auto'; q.style.height=Math.min(q.scrollHeight,120)+'px'; });
+
+/* ========== 清理旧版遗留数据（v1/v2 的对话里塞满图片） ========== */
+try{
+  ['ds2_convs','ds2_cur','ds_chat_history_v1','ds_hist_v1'].forEach(k=>localStorage.removeItem(k));
+}catch(e){}
 
 /* ========== 启动 ========== */
 if(!state.key){
