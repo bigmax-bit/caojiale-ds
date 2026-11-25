@@ -5,163 +5,433 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="随身问答">
 <meta name="theme-color" content="#0f1115">
-<title>我的随身问答</title>
+<title>随身问答</title>
 <style>
   :root{--bg:#0f1115;--card:#1a1d23;--line:#2a2f38;--txt:#e6e8eb;--sub:#8b929e;--acc:#057748;--user:#1f3a2e}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
     font:16px/1.65 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;overscroll-behavior:none}
   #wrap{display:flex;flex-direction:column;height:100%}
-  header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--card);
+  header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--card);
     border-bottom:1px solid var(--line);padding-top:calc(10px + env(safe-area-inset-top));flex:0 0 auto}
-  header b{font-size:16px}
-  header .dot{width:8px;height:8px;border-radius:50%;background:var(--acc)}
-  header select,header button{margin-left:auto;background:#23272f;color:var(--txt);border:1px solid var(--line);
-    border-radius:8px;padding:6px 10px;font-size:14px}
-  header button{margin-left:6px}
-  #log{flex:1;overflow-y:auto;padding:14px 14px 8px;-webkit-overflow-scrolling:touch}
+  header .ico{background:none;border:0;color:var(--txt);font-size:20px;padding:4px 6px;cursor:pointer}
+  #title{flex:1;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header select{background:#23272f;color:var(--txt);border:1px solid var(--line);border-radius:8px;
+    padding:5px 8px;font-size:13px;max-width:42vw}
+  #log{flex:1;overflow-y:auto;padding:14px 12px 8px;-webkit-overflow-scrolling:touch}
   .msg{margin:0 0 14px;display:flex}
-  .msg .bubble{max-width:92%;padding:10px 13px;border-radius:14px;white-space:pre-wrap;word-break:break-word}
+  .bubble{max-width:94%;padding:10px 13px;border-radius:14px;white-space:pre-wrap;word-break:break-word}
   .me{justify-content:flex-end}.me .bubble{background:var(--user);border-bottom-right-radius:4px}
   .ai .bubble{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
   .ai.thinking .bubble{color:var(--sub)}
-  #bar{display:flex;gap:8px;padding:10px 12px;background:var(--card);border-top:1px solid var(--line);
-    padding-bottom:calc(10px + env(safe-area-inset-bottom));flex:0 0 auto}
+  .bubble img{max-width:100%;border-radius:10px;margin:6px 0 2px;display:block}
+  .bubble code{background:#0b0e12;padding:1px 5px;border-radius:5px;font-size:14px}
+  .bubble pre{background:#0b0e12;padding:9px 11px;border-radius:9px;overflow-x:auto;margin:8px 0}
+  .bubble pre code{padding:0;background:none}
+  .bubble b{font-weight:600}
+  details.think{margin-bottom:8px;border-left:2px solid var(--line);padding-left:9px;color:var(--sub);font-size:14px}
+  details.think summary{cursor:pointer;font-size:13px;color:var(--sub)}
+  .meta{font-size:12px;color:var(--sub);margin-top:6px;display:flex;gap:12px}
+  .meta span{cursor:pointer}
+  #bar{display:flex;gap:8px;padding:8px 12px;background:var(--card);border-top:1px solid var(--line);
+    padding-bottom:calc(8px + env(safe-area-inset-bottom));flex:0 0 auto;align-items:flex-end}
+  #attach{background:#23272f;border:1px solid var(--line);border-radius:12px;color:var(--txt);
+    width:44px;height:44px;font-size:19px;flex:0 0 auto}
   #q{flex:1;resize:none;max-height:120px;min-height:44px;background:#23272f;color:var(--txt);
     border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:16px/1.5 inherit}
-  #send{width:64px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-size:16px;font-weight:600}
+  #send{width:62px;height:44px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-size:15px;font-weight:600}
   #send:disabled{opacity:.45}
-  #hint{font-size:12px;color:var(--sub);text-align:center;padding:0 14px 6px;background:var(--card);flex:0 0 auto}
-  .err{color:#ff8a80}
-  #setup{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;flex-direction:column;
-    justify-content:center;padding:28px}
-  #setup h1{font-size:20px;margin:0 0 6px}
-  #setup p{color:var(--sub);font-size:14px;margin:0 0 18px;line-height:1.6}
-  #setup input{width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);
-    background:#23272f;color:var(--txt);font-size:16px}
-  #setup button{margin-top:14px;width:100%;padding:14px;border:0;border-radius:12px;
-    background:var(--acc);color:#fff;font-size:16px;font-weight:600}
-  #setup small{display:block;margin-top:14px;color:var(--sub);font-size:12px;line-height:1.6}
+  #chips{display:flex;gap:8px;flex-wrap:wrap;padding:6px 12px;background:var(--card);flex:0 0 auto}
+  .chip{position:relative;background:#23272f;border:1px solid var(--line);border-radius:10px;
+    padding:5px 9px;font-size:12px;display:flex;align-items:center;gap:6px;max-width:44vw}
+  .chip img{width:34px;height:34px;object-fit:cover;border-radius:6px}
+  .chip i{cursor:pointer;font-style:normal;color:var(--sub)}
+  #drawer{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;display:none}
+  #drawer.on{display:block}
+  #panel{position:absolute;left:0;top:0;bottom:0;width:78vw;max-width:340px;background:var(--card);
+    border-right:1px solid var(--line);display:flex;flex-direction:column;padding-top:calc(14px + env(safe-area-inset-top))}
+  #panel h3{margin:0 14px 10px;font-size:14px;color:var(--sub);font-weight:600}
+  #newbtn{margin:0 14px 12px;padding:11px;border:1px dashed var(--line);border-radius:10px;
+    background:none;color:var(--txt);font-size:15px}
+  #convs{flex:1;overflow-y:auto;padding:0 8px}
+  .conv{padding:10px 10px;border-radius:9px;display:flex;align-items:center;gap:8px;font-size:14px}
+  .conv.act{background:#23272f}
+  .conv span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .conv i{font-style:normal;color:var(--sub);padding:0 4px}
+  #pfoot{padding:10px 14px;border-top:1px solid var(--line);font-size:13px;color:var(--sub);display:flex;flex-direction:column;gap:8px}
+  #pfoot button{background:#23272f;border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:9px;font-size:14px}
   .hide{display:none!important}
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;display:flex;
+    align-items:center;justify-content:center;padding:20px}
+  #modal .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;
+    width:100%;max-width:420px}
+  #modal h2{margin:0 0 6px;font-size:17px}
+  #modal p{margin:0 0 10px;font-size:13px;color:var(--sub);line-height:1.6}
+  #modal textarea,#modal input{width:100%;background:#23272f;color:var(--txt);border:1px solid var(--line);
+    border-radius:10px;padding:10px;font:14px/1.6 inherit}
+  #modal textarea{height:150px;resize:vertical}
+  #modal .row{display:flex;gap:10px;margin-top:12px}
+  #modal button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line);
+    background:#23272f;color:var(--txt);font-size:15px}
+  #modal button.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  .err{color:#ff8a80}
 </style>
 </head>
 <body>
 <div id="wrap">
   <header>
-    <span class="dot"></span><b>随身问答</b>
+    <button class="ico" id="menu">☰</button>
+    <div id="title">新对话</div>
     <select id="model">
-      <option value="deepseek-chat">chat</option>
-      <option value="deepseek-reasoner">reasoner</option>
+      <option value="deepseek-flash">flash（多模态）</option>
+      <option value="deepseek-v4-pro">v4-pro</option>
     </select>
-    <button id="clear">清空</button>
+    <button class="ico" id="more">⋯</button>
   </header>
   <div id="log"></div>
-  <div id="hint">Enter 发送 · Shift+Enter 换行</div>
+  <div id="chips" class="hide"></div>
   <div id="bar">
-    <textarea id="q" rows="1" placeholder="问点什么…"></textarea>
+    <button id="attach">＋</button>
+    <textarea id="q" rows="1" placeholder="问点什么…（可加图片/文件）"></textarea>
     <button id="send">发送</button>
   </div>
 </div>
 
-<div id="setup">
-  <h1>先填 API Key</h1>
-  <p>只需填一次，存在这台手机的浏览器里，不会上传到任何服务器。</p>
-  <input id="keyin" type="password" placeholder="sk-..." autocomplete="off">
-  <button id="save">保存并开始</button>
-  <small>Key 在 platform.deepseek.com 生成。填完这页就消失，以后不再问。想换 key：长按页面标题或清空浏览器数据。</small>
+<div id="drawer">
+  <div id="panel">
+    <h3>对话</h3>
+    <button id="newbtn">＋ 新对话</button>
+    <div id="convs"></div>
+    <div id="pfoot">
+      <button id="memBtn">🧠 长期记忆</button>
+      <button id="keyBtn">🔑 更换 API Key</button>
+    </div>
+  </div>
 </div>
 
+<div id="modal" class="hide"><div class="box">
+  <h2 id="mtitle">标题</h2>
+  <p id="mdesc"></p>
+  <textarea id="mtext" class="hide"></textarea>
+  <input id="minput" class="hide" type="password" placeholder="sk-...">
+  <div class="row">
+    <button id="mcancel">取消</button>
+    <button id="mok" class="primary">保存</button>
+  </div>
+</div></div>
+
+<input id="file" type="file" multiple accept="image/*,.txt,.md,.markdown,.csv,.json,.py,.js,.log,.yaml,.yml,.html,.xml,.tex,.bib,.pdf" class="hide">
+
 <script>
+/* ========== 基础 ========== */
 const API="https://api.deepseek.com/chat/completions";
-const K_KEY="ds_apikey_v1", K_HIS="ds_hist_v1";
-const log=document.getElementById('log'), q=document.getElementById('q');
-const send=document.getElementById('send'), model=document.getElementById('model');
-const setup=document.getElementById('setup');
-let history=[], busy=false;
+const K={key:"ds2_key",convs:"ds2_convs",cur:"ds2_cur",mem:"ds2_mem"};
+const $=id=>document.getElementById(id);
+const log=$('log'),q=$('q'),modelSel=$('model');
 
-function getKey(){ return localStorage.getItem(K_KEY)||''; }
-function needSetup(){ setup.classList.toggle('hide', !!getKey()); }
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){
+    if(e.name==='QuotaExceededError'){alert('本地存储满了：删掉一些旧对话或图片');}
+    return false}}
+};
 
-function bubble(role,text){
-  const d=document.createElement('div'); d.className='msg '+(role==='user'?'me':'ai');
-  const b=document.createElement('div'); b.className='bubble'; b.textContent=text||'';
-  d.appendChild(b); log.appendChild(d); scrollBottom(); return b;
+let state={
+  convs: store.get(K.convs,[]),
+  cur: store.get(K.cur,null),
+  mem: store.get(K.mem,''),
+  key: localStorage.getItem(K.key)||''
+};
+let attachments=[];      // {kind:'image'|'text', name, data/dataURL, w?,h?}
+let busy=false;
+
+/* ========== 工具 ========== */
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function curConv(){
+  let c=state.convs.find(x=>x.id===state.cur);
+  if(!c){ c={id:uid(),title:'新对话',msgs:[],updated:Date.now()}; state.convs.unshift(c); state.cur=c.id; persist(); }
+  return c;
+}
+function persist(){ store.set(K.convs,state.convs); store.set(K.cur,state.cur); }
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+/* 轻量 markdown：代码块 / 行内代码 / 粗体 / 标题 */
+function md(s){
+  let out=esc(s);
+  out=out.replace(/```([\s\S]*?)```/g,(m,c)=>'<pre><code>'+c.replace(/^\n/,'')+'</code></pre>');
+  out=out.replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  out=out.replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');
+  out=out.replace(/^### (.+)$/gm,'<b>$1</b>');
+  out=out.replace(/^## (.+)$/gm,'<b>$1</b>');
+  return out;
+}
+
+/* ========== 渲染 ========== */
+function renderConvList(){
+  const box=$('convs'); box.innerHTML='';
+  state.convs.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='conv'+(c.id===state.cur?' act':'');
+    d.innerHTML='<span></span><i>✕</i>';
+    d.querySelector('span').textContent=c.title||'未命名';
+    d.querySelector('span').onclick=()=>{state.cur=c.id;persist();renderAll();closeDrawer()};
+    d.querySelector('i').onclick=e=>{e.stopPropagation();
+      if(confirm('删除「'+(c.title||'未命名')+'」？')){
+        state.convs=state.convs.filter(x=>x.id!==c.id);
+        if(state.cur===c.id) state.cur=state.convs[0]?.id||null;
+        persist();renderAll();}};
+    box.appendChild(d);
+  });
+}
+
+function renderAll(){
+  const c=curConv();
+  $('title').textContent=c.title||'新对话';
+  log.innerHTML='';
+  c.msgs.forEach(m=>paint(m));
+  renderConvList();
+  scrollBottom();
+}
+
+function paint(m){
+  const wrap=document.createElement('div');
+  wrap.className='msg '+(m.role==='user'?'me':'ai');
+  const b=document.createElement('div'); b.className='bubble';
+  const body=document.createElement('div');
+  body.innerHTML = m.role==='user' ? esc(m.content) : md(m.content);
+  b.appendChild(body);
+  if(m.role==='assistant'&&m.reasoning){
+    const dt=document.createElement('details'); dt.className='think';
+    dt.innerHTML='<summary>思考过程</summary><div>'+esc(m.reasoning).slice(0,4000)+'</div>';
+    b.insertBefore(dt,b.firstChild);
+  }
+  if(m.imgs&&m.imgs.length){ m.imgs.forEach(src=>{const im=new Image();im.src=src;b.appendChild(im);}); }
+  if(m.files&&m.files.length){
+    const t=document.createElement('div'); t.className='meta';
+    t.textContent='📄 '+m.files.join('、');
+    b.appendChild(t);
+  }
+  wrap.appendChild(b); log.appendChild(wrap);
+  return {wrap, bubble:b, body};
 }
 function scrollBottom(){ log.scrollTop=log.scrollHeight; }
-function render(){ log.innerHTML=''; history.forEach(m=>bubble(m.role,m.content)); }
-function saveHist(){ try{ localStorage.setItem(K_HIS, JSON.stringify(history.slice(-40))); }catch(e){} }
 
-try{ history=JSON.parse(localStorage.getItem(K_HIS)||'[]'); }catch(e){ history=[]; }
-needSetup(); render();
+/* ========== 抽屉 ========== */
+function openDrawer(){$('drawer').classList.add('on')}
+function closeDrawer(){$('drawer').classList.remove('on')}
+$('menu').onclick=openDrawer;
+$('drawer').onclick=e=>{ if(e.target.id==='drawer') closeDrawer(); };
+$('newbtn').onclick=()=>{ state.cur=uid(); state.convs.unshift({id:state.cur,title:'新对话',msgs:[],updated:Date.now()});
+  persist(); renderAll(); closeDrawer(); q.focus(); };
 
-document.getElementById('save').onclick=()=>{
-  const v=document.getElementById('keyin').value.trim();
-  if(!v.startsWith('sk-')){ alert('看起来不像 sk- 开头的 key'); return; }
-  localStorage.setItem(K_KEY,v); setup.classList.add('hide');
+/* ========== 弹窗 ========== */
+let modalOK=null;
+function showModal({title,desc,type='text',value='',ok}){
+  $('mtitle').textContent=title; $('mdesc').textContent=desc||'';
+  $('mtext').classList.toggle('hide',type!=='text');
+  $('minput').classList.toggle('hide',type!=='key');
+  if(type==='text') $('mtext').value=value||'';
+  if(type==='key') $('minput').value='';
+  modalOK=ok; $('modal').classList.remove('hide');
+  setTimeout(()=>{ (type==='text'?$('mtext'):$('minput')).focus(); },50);
+}
+function hideModal(){$('modal').classList.add('hide'); modalOK=null}
+$('mcancel').onclick=hideModal;
+$('mok').onclick=()=>{ const v=($('mtext').classList.contains('hide')?$('minput').value:$('mtext').value);
+  if(modalOK) modalOK(v); hideModal(); };
+
+$('more').onclick=()=>{
+  const c=curConv();
+  const act=prompt('输入数字：\n1 长期记忆\n2 导出 Markdown\n3 清空当前对话\n4 更换 API Key');
+  if(act==='1') $('memBtn').click();
+  else if(act==='2') exportMd(c);
+  else if(act==='3'){ if(confirm('清空当前对话？')){ c.msgs=[]; persist(); renderAll(); } }
+  else if(act==='4') $('keyBtn').click();
 };
-document.getElementById('keyin').addEventListener('keydown',e=>{
-  if(e.key==='Enter') document.getElementById('save').click();
-});
-document.getElementById('clear').onclick=()=>{
-  if(!confirm('清空当前对话？')) return;
-  history=[]; saveHist(); render();
+
+$('memBtn').onclick=()=>{
+  showModal({title:'长期记忆',desc:'这里的设定每次都会随对话一起发送，相当于"永远记得"。比如你的身份、课题、偏好。',
+    type:'text',value:state.mem,ok:v=>{ state.mem=v; store.set(K.mem,v); closeDrawer(); }});
 };
+$('keyBtn').onclick=()=>{
+  showModal({title:'API Key',desc:'保存在这台手机的浏览器里，不会上传。',
+    type:'key',ok:v=>{ if(!v.startsWith('sk-')){alert('格式不对，应以 sk- 开头');return}
+      state.key=v; localStorage.setItem(K.key,v); closeDrawer(); }});
+};
+
+function exportMd(c){
+  let s='# '+(c.title||'对话')+'\n\n';
+  c.msgs.forEach(m=>{ s+=(m.role==='user'?'**我**：\n':'**AI**：\n')+m.content+'\n\n'; });
+  const blob=new Blob([s],{type:'text/markdown'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=(c.title||'对话')+'.md'; a.click();
+}
+
+/* ========== 附件 ========== */
+$('attach').onclick=()=>$('file').click();
+$('file').onchange=async e=>{
+  const files=[...e.target.files]; e.target.value='';
+  for(const f of files) await addFile(f);
+  renderChips();
+};
+function renderChips(){
+  const box=$('chips'); box.innerHTML='';
+  box.classList.toggle('hide',attachments.length===0);
+  attachments.forEach((a,i)=>{
+    const d=document.createElement('div'); d.className='chip';
+    if(a.kind==='image'){ const im=new Image(); im.src=a.dataURL; d.appendChild(im); }
+    const s=document.createElement('span'); s.textContent=a.name.slice(0,16); d.appendChild(s);
+    const x=document.createElement('i'); x.textContent='✕'; x.onclick=()=>{attachments.splice(i,1);renderChips()};
+    d.appendChild(x); box.appendChild(d);
+  });
+}
+function addFile(f){
+  return new Promise(async res=>{
+    try{
+      if(f.type.startsWith('image/')){
+        const dataURL=await compress(f);
+        attachments.push({kind:'image',name:f.name,dataURL});
+      }else if(f.name.toLowerCase().endsWith('.pdf')){
+        const txt=await pdfText(f);
+        attachments.push({kind:'text',name:f.name,data:'[PDF] '+f.name+'\n'+txt});
+      }else{
+        const txt=await f.text();
+        attachments.push({kind:'text',name:f.name,data:'['+f.name+']\n'+txt.slice(0,20000)});
+      }
+    }catch(err){ alert('读不了 '+f.name+'：'+err.message); }
+    res();
+  });
+}
+function compress(file){
+  return new Promise((res,rej)=>{
+    const img=new Image(); const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const MAX=1568; let w=img.width,h=img.height;
+      const k=Math.min(1,MAX/Math.max(w,h)); w=Math.round(w*k); h=Math.round(h*k);
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      res(cv.toDataURL('image/jpeg',0.82));
+    };
+    img.onerror=()=>rej(new Error('图片解码失败'));
+    img.src=url;
+  });
+}
+async function pdfText(file){
+  if(!window.pdfjsLib){
+    await new Promise((res,rej)=>{ const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      s.onload=res; s.onerror=()=>rej(new Error('pdf.js 加载失败（可能被网络拦截）'));
+      document.head.appendChild(s); });
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let out='';
+  const n=Math.min(pdf.numPages,20);
+  for(let i=1;i<=n;i++){
+    const page=await pdf.getPage(i);
+    const tc=await page.getTextContent();
+    out+=tc.items.map(it=>it.str).join(' ')+'\n';
+    if(out.length>20000) break;
+  }
+  return out.slice(0,20000);
+}
+
+/* ========== 发送 ========== */
+function buildContent(text){
+  const imgs=attachments.filter(a=>a.kind==='image');
+  const texts=attachments.filter(a=>a.kind==='text').map(a=>a.data).join('\n\n');
+  const full=(text+(texts?'\n\n'+texts:'')).trim();
+  if(imgs.length){
+    const parts=[{type:'text',text:full||'看看这些图片'}];
+    imgs.forEach(a=>parts.push({type:'image_url',image_url:{url:a.dataURL}}));
+    return parts;
+  }
+  return full;
+}
 
 async function ask(){
   const text=q.value.trim();
-  if(!text||busy) return;
-  if(!getKey()){ needSetup(); return; }
-  busy=true; send.disabled=true; q.value=''; q.style.height='auto';
-  history.push({role:'user',content:text}); bubble('user',text);
-  const holder=bubble('assistant','');
-  holder.parentElement.classList.add('thinking');
-  let acc='';
+  if((!text&&attachments.length===0)||busy) return;
+  if(!state.key){ $('keyBtn').click(); return; }
+  if(attachments.some(a=>a.kind==='image') && modelSel.value!=='deepseek-flash'){
+    alert('当前模型不看图，已切到 flash'); modelSel.value='deepseek-flash';
+  }
+  const c=curConv();
+  busy=true; $('send').disabled=true;
+
+  const imgs=attachments.filter(a=>a.kind==='image').map(a=>a.dataURL);
+  const files=attachments.filter(a=>a.kind==='text').map(a=>a.name);
+  const content=buildContent(text);
+  const shown=text||'（附件）';
+
+  c.msgs.push({role:'user',content:shown,imgs:imgs.length?imgs:undefined,files:files.length?files:undefined});
+  if(c.title==='新对话'||!c.title) c.title=(text||files[0]||'新对话').slice(0,20);
+  persist(); renderAll();
+
+  q.value=''; q.style.height='auto'; attachments=[]; renderChips();
+
+  const node=paint({role:'assistant',content:''});
+  const holder=node.body;
+  node.wrap.classList.add('thinking');
+  let acc='', reasoning='';
+
+  const msgs=[];
+  if(state.mem.trim()) msgs.push({role:'system',content:'【用户长期设定，请始终遵守】\n'+state.mem.trim()});
+  c.msgs.forEach(m=>msgs.push({role:m.role,content:m.content}));
+  msgs[msgs.length-1].content=content;   // 最后一条带附件
+
   try{
-    const r=await fetch(API,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+getKey()},
-      body:JSON.stringify({model:model.value,messages:history,stream:true,max_tokens:4096})
-    });
-    if(!r.ok){
-      const t=await r.text();
-      throw new Error('HTTP '+r.status+' '+t.slice(0,200));
-    }
-    const rd=r.body.getReader(), dec=new TextDecoder();
-    let buf='';
+    const r=await fetch(API,{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+state.key},
+      body:JSON.stringify({model:modelSel.value,messages:msgs,stream:true,max_tokens:8192})});
+    if(r.status===401){ throw new Error('Key 无效或已失效（401），点 ⋯ → 更换 API Key'); }
+    if(!r.ok){ throw new Error('HTTP '+r.status+' '+(await r.text()).slice(0,200)); }
+
+    const rd=r.body.getReader(), dec=new TextDecoder(); let buf='';
     while(true){
-      const {done,value}=await rd.read();
-      if(done) break;
-      buf+=dec.decode(value,{stream:true});
-      let i;
+      const {done,value}=await rd.read(); if(done) break;
+      buf+=dec.decode(value,{stream:true}); let i;
       while((i=buf.indexOf('\n'))>=0){
         const line=buf.slice(0,i).trim(); buf=buf.slice(i+1);
         if(!line.startsWith('data:')) continue;
-        const data=line.slice(5).trim();
-        if(!data||data==='[DONE]') continue;
+        const data=line.slice(5).trim(); if(!data||data==='[DONE]') continue;
         try{
-          const j=JSON.parse(data);
-          const ch=j.choices&&j.choices[0]&&j.choices[0].delta;
-          const c=ch&&(ch.content||ch.reasoning_content);
-          if(c){ acc+=c; holder.textContent=acc; scrollBottom(); }
+          const j=JSON.parse(data); const d=j.choices?.[0]?.delta;
+          if(d?.reasoning_content){ reasoning+=d.reasoning_content; }
+          if(d?.content){ acc+=d.content; holder.innerHTML=md(acc); scrollBottom(); }
         }catch(e){}
       }
     }
-    holder.parentElement.classList.remove('thinking');
-    if(acc){ history.push({role:'assistant',content:acc}); }
-    else{ holder.textContent='（没返回内容，检查 key 或额度）'; holder.classList.add('err'); }
-    saveHist();
+    node.wrap.classList.remove('thinking');
+    c.msgs.push({role:'assistant',content:acc||'（没返回内容）',reasoning:reasoning||undefined});
+    persist();
+    if(reasoning){ const dt=document.createElement('details'); dt.className='think';
+      dt.innerHTML='<summary>思考过程</summary><div>'+esc(reasoning).slice(0,4000)+'</div>';
+      node.bubble.insertBefore(dt,node.bubble.firstChild); }
   }catch(e){
-    holder.parentElement.classList.remove('thinking');
-    holder.textContent='出错：'+e.message; holder.classList.add('err');
-  }finally{ busy=false; send.disabled=false; }
+    node.wrap.classList.remove('thinking');
+    holder.innerHTML='<span class="err">出错：'+esc(e.message)+'</span>';
+  }finally{ busy=false; $('send').disabled=false; renderConvList(); }
 }
 
-send.onclick=ask;
+$('send').onclick=ask;
 q.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); ask(); }
 });
 q.addEventListener('input',()=>{ q.style.height='auto'; q.style.height=Math.min(q.scrollHeight,120)+'px'; });
+
+/* ========== 启动 ========== */
+if(!state.key){
+  showModal({title:'先填 API Key',desc:'只存这台手机，不上传。在 platform.deepseek.com 生成。',
+    type:'key',ok:v=>{ if(!v.startsWith('sk-')){alert('应以 sk- 开头');return}
+      state.key=v; localStorage.setItem(K.key,v); }});
+}
+if(!state.cur && state.convs.length) state.cur=state.convs[0].id;
+renderAll();
 </script>
 </body>
 </html>
